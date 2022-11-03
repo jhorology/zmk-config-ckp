@@ -41,11 +41,11 @@
 		};
 		raise2 {
 			bindings = <
-				&bootloader  &kp F13          &kp F14      &kp F15          &kp F16           &kp F17  &kp F18  &kp F19  &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &reset  &kp C_AL_LOCK
-				&trans       &bt BT_PREV      &bt BT_NEXT  &bt BT_CLR       &trans            &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans
-				&trans       &rgb_ug RGB_TOG  &bl BL_INC   &rgb_ug RGB_HUI  &trans            &trans   &trans   &trans   &trans   &trans   &trans   &trans            &trans
-				&trans                        &trans       &bl BL_DEC       &rgb_ug RGB_HUD   &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans           &trans
-                     &trans           &trans                                                   &trans                                       &trans   &trans
+				&bootloader  &kp F13          &kp F14     &kp F15          &kp F16           &kp F17  &kp F18  &kp F19  &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &reset  &kp C_AL_LOCK
+				&trans       &bt BT_PRV       &bt BT_NXT  &bt BT_CLR       &trans            &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans
+				&trans       &rgb_ug RGB_TOG  &bl BL_INC  &rgb_ug RGB_HUI  &trans            &trans   &trans   &trans   &trans   &trans   &trans   &trans            &trans
+				&trans                        &trans      &bl BL_DEC       &rgb_ug RGB_HUD   &trans   &trans   &trans   &trans   &trans   &trans   &trans   &trans           &trans
+                     &trans           &trans                                                  &trans                                       &trans   &trans
         >;
 			sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
 		};
