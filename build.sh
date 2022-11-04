@@ -22,7 +22,7 @@ fi
 
 # configuration
 # -----------------------------------
-DOCKER_IMAGE=zmkfirmware/zmk-dev-arm:stable
+DOCKER_IMAGE=my/zmk-dev-arm:stable
 UPDATE_BUILD_ENV=true
 
 #  override configuration
@@ -36,7 +36,7 @@ UPDATE_BUILD_ENV=true
 # pull docker  image
 # -----------------------------------
 [ -z "$(docker image ls | grep $DOCKER_IMAGE)" ] && \
-    docker pull $DOCKER_IMAGE
+    docker build -t my/zmk-dev-arm:stable .
 
 # setup build env
 # -----------------------------------
