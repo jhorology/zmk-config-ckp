@@ -54,5 +54,5 @@ pushd zmk
 VERSION="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
 popd
 
-mkdir dist
+mkdir -p dist
 cp build/zephyr/zmk.uf2 dist/$(git branch --show-current)_${VERSION}.uf2
