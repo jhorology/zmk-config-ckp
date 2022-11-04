@@ -48,7 +48,7 @@ if $UPDATE_BUILD_ENV; then
     popd
 fi
 
-docker run -it --rm -v $PROJECT:/workdir --env UPDATE_BUILD_ENV=$UPDATE_BUILD_ENV --name zmk-build $DOCKER_IMAGE /workdir/build.container.sh
+docker run -it --rm -v $PROJECT:/workdir --env UPDATE_BUILD_ENV=$UPDATE_BUILD_ENV --name zmk-build $DOCKER_IMAGE /workdir/container_build_task.sh
 
 pushd zmk
 VERSION="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
