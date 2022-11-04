@@ -12,5 +12,5 @@ if $UPDATE_BUILD_ENV; then
     west update
     west zephyr-export
 fi
-west build -s zmk/app -b bt60 -- -DZMK_CONFIG=/workdir/config
+west build -s zmk/app -b bt60 -- -DZMK_CONFIG="${PROJECT}/config"
 
