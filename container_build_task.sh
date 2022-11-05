@@ -1,7 +1,11 @@
-#!/bin/bash
+#!/bin/bash -e
 
 PROJECT=$(dirname $(realpath $0))
 cd $PROJECT
+
+[ ! -d modules ] && UPDATE_BUILD_ENV=true
+[ ! -d zephyr ] && UPDATE_BUILD_ENV=true
+[ ! -d zmk ] && UPDATE_BUILD_ENV=true
 
 if [ ! -d .west/ ]; then
     west init -l config
@@ -9,6 +13,13 @@ if [ ! -d .west/ ]; then
 fi
 
 if $UPDATE_BUILD_ENV; then
+    if [ -d zmk ]; then
+        # revert changes
+        cd zmk
+        git reset --hard HEAD
+        git clean -dfx
+        cd $PROJECT
+    fi
     west update
     west zephyr-export
     cd zmk
