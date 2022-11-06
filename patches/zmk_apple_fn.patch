@@ -1,8 +1,8 @@
 diff --git a/app/Kconfig b/app/Kconfig
-index 9902046d..630ef312 100644
+index 9902046d..82640154 100644
 --- a/app/Kconfig
 +++ b/app/Kconfig
-@@ -17,10 +17,10 @@ config BT_DEVICE_NAME
+@@ -17,19 +17,19 @@ config BT_DEVICE_NAME
  	default ZMK_KEYBOARD_NAME
  
  config USB_DEVICE_VID
@@ -15,6 +15,17 @@ index 9902046d..630ef312 100644
  
  config USB_DEVICE_MANUFACTURER
  	default "ZMK Project"
+ 
+ config BT_DIS_PNP_VID
+-	default 0x1D50
++	default 0x05AC
+ 
+ config BT_DIS_PNP_PID
+-	default 0x615E
++	default 0x024F
+ 
+ config BT_DIS_MODEL
+ 	default ZMK_KEYBOARD_NAME
 diff --git a/app/include/dt-bindings/zmk/hid_usage.h b/app/include/dt-bindings/zmk/hid_usage.h
 index 0555f004..b24c86dc 100644
 --- a/app/include/dt-bindings/zmk/hid_usage.h
