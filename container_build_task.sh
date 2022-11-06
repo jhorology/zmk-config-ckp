@@ -20,7 +20,7 @@ if $UPDATE_BUILD_ENV; then
         git clean -dfx
         cd $PROJECT
     fi
-    west update
+    west update -n
     west zephyr-export
     cd zmk
     for patch in ../patches/zmk_*.patch; do
