@@ -88,4 +88,5 @@ pushd zmk
 VERSION="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
 popd
 mkdir -p dist
-cp build/zephyr/zmk.uf2 dist/$(git branch --show-current)_${VERSION}.uf2
+cp build/bt60/zephyr/zmk.uf2 dist/bt60_hhkb_ec11_${VERSION}.uf2
+cp build/bt65/zephyr/zmk.uf2 dist/bt65_tsangan_ec11x3_${VERSION}.uf2

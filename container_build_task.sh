@@ -28,5 +28,5 @@ if $UPDATE_BUILD_ENV; then
     done
     cd $PROJECT
 fi
-west build -s zmk/app -b bt60 -- -DZMK_CONFIG="${PROJECT}/config"
-
+west build -s zmk/app -b bt60 --build-dir build/bt60 -- -DZMK_CONFIG="${PROJECT}/config"
+west build -s zmk/app -b bt65 --build-dir build/bt65 -- -DZMK_CONFIG="${PROJECT}/config"
