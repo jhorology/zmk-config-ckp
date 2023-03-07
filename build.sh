@@ -7,6 +7,7 @@ zparseopts -D -E -F -- \
            {h,-help}=help  \
            {c,-clean}=clean  \
            {d,-docker}=docker  \
+           {f,-flash}=flash  \
            {w,-without-update}=without_update \
     || return
 
@@ -22,6 +23,7 @@ if (( $#help )); then
           "    $0:t [options...]                  build firmware" \
           "" \
           "options:" \
+          "    -f,--flash                       post build copy firmware to DFU drive" \
           "    -w,--without-update              don't sync remote repository"
     return
 fi
@@ -82,13 +84,41 @@ docker run -it --rm -v $PROJECT:$CONTAINER_WORK_DIR \
        --name zmk-build $DOCKER_IMAGE \
        $CONTAINER_WORK_DIR/container_build_task.sh
 
-# cop & rename firmware
+# copy & rename firmware
 # -----------------------------------
 pushd zmk
 VERSION="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
 popd
 mkdir -p dist
- 
 cp build/bt60/zephyr/zmk.uf2 dist/bt60_hhkb_ec11_${VERSION}.uf2
+
+# flashfirmware
+# -----------------------------------
+UF2_FLASH_VOLUME=""
+if (( $#flash )); then
+    if [[ $(uname) == "Darwin" ]]; then
+        UF2_FLASH_VOLUME="/Volumes/CKP"
+    fi
+
+    # TODO other platform
+
+    if [[ ! -z "$UF2_FLASH_VOLUME" ]]; then
+        echo -n "Waiting for DFU volume to be mounted"
+        for ((i=0; i < 20; i+=1)); do
+            echo -n "."
+            if [[ -d "$UF2_FLASH_VOLUME" ]]; then
+                echo ""
+                echo "copying file [bt60_hhkb_ec11_${VERSION}.uf2] to ${UF2_FLASH_VOLUME}..."
+                sleep 1
+                cp dist/bt60_hhkb_ec11_${VERSION}.uf2 "$UF2_FLASH_VOLUME"
+                echo "flashing firmware finished successfully."
+                break
+            fi
+            sleep 1
+        done
+    fi
+fi
+
+
 # BT65 is finally broken.
 # cp build/bt65/zephyr/zmk.uf2 dist/bt65_tsangan_ec11x3_${VERSION}.uf2
