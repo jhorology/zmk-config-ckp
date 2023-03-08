@@ -7,7 +7,7 @@ index 01104d1c..1a9ace55 100644
  #include <dt-bindings/zmk/hid_usage_pages.h>
  
 -#define ZMK_HID_KEYBOARD_NKRO_MAX_USAGE HID_USAGE_KEY_KEYPAD_EQUAL
-+#define ZMK_HID_KEYBOARD_NKRO_MAX_USAGE 0xEF
++#define ZMK_HID_KEYBOARD_NKRO_MAX_USAGE 0xDF
  
  #define COLLECTION_REPORT 0x03
  
