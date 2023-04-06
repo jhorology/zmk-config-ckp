@@ -9,6 +9,7 @@
 
 #include <dt-bindings/led/led.h>
 #include <dt-bindings/zmk/matrix_transform.h>
+#include "bt60-pinctrl.dtsi"
 
 / {
 	model = "BT60";
@@ -20,7 +21,10 @@
 		zephyr,flash = &flash0;
 		zmk,kscan = &kscan0;
 		zmk,underglow = &led_strip;
+    /*
+    * TODO temporary removed. I don't know the definition for zephyr 3.2
 		zmk,backlight = &backlight;
+    */
 		zmk,matrix_transform = &default_transform;
 		zmk,battery = &vbatt;
 	};
@@ -105,6 +109,12 @@
 		resolution = <2>;
 		status = "okay";
 	};
+
+  
+  /*
+   * TODO temporary removed. I don't know the definition for zephyr 3.2
+   */
+  /*
 	backlight: pwmleds {
 		compatible = "pwm-leds";
 		label = "Backlight LEDs";
@@ -113,6 +123,7 @@
 			label = "Backlight LED 0";
 		};
 	};
+  */
 
 	leds {
 		compatible = "gpio-leds";
@@ -137,7 +148,11 @@
 
 &pwm0 {
 	status = "okay";
-	ch0-pin = <17>;
+  pinctrl-0 = <&pwm0_default>;
+	pinctrl-names = "default";
+  /*
+  ch0-pin = <17>;
+  */
 };
 
 &gpiote {
@@ -152,11 +167,13 @@
 	status = "okay";
 };
 
+/*
 &i2c0 {
 	compatible = "nordic,nrf-twi";
-	sda-pin = <17>;
+  sda-pin = <17>;
 	scl-pin = <20>;
 };
+*/
 
 &uart0 {
 	compatible = "nordic,nrf-uarte";
@@ -212,10 +229,15 @@
 &spi1 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
+  pinctrl-0 = <&spi0_default>;
+	pinctrl-names = "default";
+
+  /*
 	mosi-pin = <20>;
 	// Unused pins, needed for SPI definition, but not used by the ws2812 driver itself.
 	sck-pin = <27>;
 	miso-pin = <8>;
+  */
 
 	led_strip: ws2812@0 {
 		compatible = "worldsemi,ws2812-spi";

@@ -119,7 +119,6 @@
       >;
       sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
     };
-    // row2 LANG1/LANG2 for testing NKRO
     hhkb_like_fn_layer {
       bindings = <
         &kp ESC   &kp F1     &kp F2     &kp F3   &kp F4  &kp F5   &kp F6           &kp F7         &kp F8        &kp F9     &kp F10          &kp F11   &kp F12  &kp INS  &kp C_PP
@@ -142,10 +141,10 @@
     };
     misc_settings {
       bindings = <
-        &bootloader  &kp F13 &kp F14  &kp F15  &kp F16  &kp F17  &kp F18  &kp F19       &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &reset  &kp C_AL_LOCK
+        &bootloader  &kp F13 &kp F14  &kp F15  &kp F16  &kp F17  &kp F18  &kp F19       &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &sys_reset  &kp C_AL_LOCK
         &trans       &ble1   &ble2    &ble3    &ble4    &ble5    &trans   &out OUT_USB  &trans   &trans   &trans   &trans   &trans   &bt BT_CLR
         &trans       &trans  &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans            &trans
-        &trans               &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans   &trans           &trans
+        &trans               &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans   &trans               &trans
                      &trans  &trans                              &trans                                            &trans   &trans
         >;
       sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;

@@ -133,11 +133,11 @@
     };
     misc_settings {
       bindings = <
-        &bootloader  &kp F13  &kp F14  &kp F15  &kp F16  &kp F17  &kp F18  &kp F19       &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &reset  &kp C_AL_LOCK  &trans
-        &trans       &ble1    &ble2    &ble3    &ble4    &ble5    &trans   &out OUT_USB  &trans   &trans   &trans   &trans   &trans   &bt BT_CLR             &trans
-        &trans       &trans   &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans            &trans                 &trans
-        &trans                &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans   &trans           &trans         &trans
-        &trans       &trans   &trans                              &trans                                            &trans   &trans   &trans                 &trans
+        &bootloader  &kp F13  &kp F14  &kp F15  &kp F16  &kp F17  &kp F18  &kp F19       &kp F20  &kp F21  &kp F22  &kp F23  &kp F24  &sys_reset  &kp C_AL_LOCK  &trans
+        &trans       &ble1    &ble2    &ble3    &ble4    &ble5    &trans   &out OUT_USB  &trans   &trans   &trans   &trans   &trans   &bt BT_CLR                 &trans
+        &trans       &trans   &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans            &trans                     &trans
+        &trans                &trans   &trans   &trans   &trans   &trans   &trans        &trans   &trans   &trans   &trans   &trans               &trans         &trans
+        &trans       &trans   &trans                              &trans                                            &trans   &trans   &trans                     &trans
       >;
       sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN &inc_dec_kp F15 F14 &inc_dec_kp F18 F17>;
     };
