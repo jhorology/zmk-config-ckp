@@ -48,7 +48,6 @@ if (( $#clean )); then
     rm -rf zephyr
     rm -rf .west
     docker rmi $DOCKER_IMAGE
-    docker rmi zmkfirmware/zmk-dev-arm:stable
     return
 fi
 

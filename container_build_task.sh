@@ -9,6 +9,7 @@ cd $PROJECT
 
 if [ ! -d .west/ ]; then
     west init -l config
+    west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     UPDATE_BUILD_ENV=true
 fi
 
@@ -21,12 +22,12 @@ if $UPDATE_BUILD_ENV; then
         cd $PROJECT
     fi
     west update -n
-    west zephyr-export
     cd zmk
     for patch in ../patches/zmk_*.patch; do
         git apply -3 --verbose $patch
     done
     cd $PROJECT
+    west zephyr-export
 fi
 west build -s zmk/app -b bt60 --build-dir build/bt60 -- -DZMK_CONFIG="${PROJECT}/config"
 # BT65 is finally broken.

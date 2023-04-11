@@ -6,5 +6,6 @@ ARG WORK_DIR=/workdir
 RUN groupadd -f -g $HOST_GID user \
   && useradd -m -s /bin/bash -u $HOST_UID -g $HOST_GID user \
   && mkdir $WORK_DIR \
-  && chown -R $HOST_UID:$HOST_GID $WORK_DIR
+  && chown -R $HOST_UID:$HOST_GID $WORK_DIR \
+  && echo "[ -f $WORK_DIR/zepzephyr/zephyr-env.sh ] && source $WORK_DIR/zepzephyr/zephyr-env.sh" >> /home/user/.bashrc
 USER user
