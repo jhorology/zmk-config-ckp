@@ -88,9 +88,9 @@ index ab42adaa..00e667a0 100644
 +    /* INPUT (Data,Ary,Abs) */
 +    HID_INPUT(0x02),
 +    /* Reserved 7 bits */
-+    HID_REPORT_SIZE(0x01),
-+    HID_REPORT_COUNT(0x07),
-+    HID_INPUT(0x01),
++    HID_REPORT_SIZE(0x07),
++    HID_REPORT_COUNT(0x01),
++    HID_INPUT(0x03),
  
      HID_USAGE_PAGE(HID_USAGE_KEY),
  
