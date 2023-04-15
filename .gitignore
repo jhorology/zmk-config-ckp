@@ -11,6 +11,7 @@
 .clangd
 *.uf2
 
+compile_commands.json
 .config
 .west/
 .venv/

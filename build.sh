@@ -1,18 +1,6 @@
 #!/bin/zsh -eu
 
 PROJECT=$(realpath $0:h)
-cd "$PROJECT"
-
-zparseopts -D -E -F -- \
-           {h,-help}=help  \
-           -clean-all=clean_all \
-           -setup=setup \
-           {s,-docker-shell}=docker_shell \
-           {d,-with-docker}=with_docker \
-           {w,-without-update}=without_update \
-           {p,-without-patch}=without_patch \
-           {f,-flash}=flash  \
-    || return
 
 # configuration
 # -----------------------------------
@@ -62,23 +50,47 @@ CONTAINER_WORKSPACE_DIR=/workspace
 
 THIS_SCRIPT=$0
 
+cd "$PROJECT"
+
+# options
+# -----------------------------------
+zparseopts -D -E -F -- \
+           {h,-help}=help  \
+           -clean-modules=clean_modules \
+           -clean-tools=clean_tools \
+           -clean-all=clean_all \
+           -setup=setup \
+           -setup-docker=setup_docker \
+           {s,-docker-shell}=docker_shell \
+           {d,-with-docker}=with_docker \
+           -with-setup=with_setup \
+           {w,-without-update}=without_update \
+           {p,-without-patch}=without_patch \
+           {f,-flash}=flash  \
+    || return
+
+
 # functions
 # -----------------------------------
 help_usage() {
-    print -rC1 --      \
+    print -rC1 -- \
           "" \
           "Usage:" \
           "    $THIS_SCRIPT:t <-h|--help>              help" \
+          "    $THIS_SCRIPT:t <--clean-modules>        clean source moudules & build files" \
+          "    $THIS_SCRIPT:t <--clean-tools>          clean zephyr sdk & project build tools" \
           "    $THIS_SCRIPT:t <--clean-all>            clean build environment" \
-          "    $THIS_SCRIPT:t <--setup>                setup zephyr sdk & projtect build environment" \
+          "    $THIS_SCRIPT:t <--setup>                setup zephyr sdk & projtect build tools" \
+          "    $THIS_SCRIPT:t <--setup-docker>         create docker image" \
           "    $THIS_SCRIPT:t <-s|--docker-shell>      enter docker container shell" \
           "    $THIS_SCRIPT:t [build options...]       build firmware" \
           "" \
           "build options:" \
           "    -d,--with-docker                 build with docker" \
+          "    --with-setup                     pre build automatic setup" \
           "    -w,--without-update              don't sync remote repository" \
           "    -p,--without-patch               don't apply patches" \
-          "    -f,--flash                       post build copy firmware to DFU drive" \
+          "    -f,--flash                       post build copy firmware to DFU drive"
 }
 
 error_exit() {
@@ -87,19 +99,38 @@ error_exit() {
 }
 
 
-clean_all() {
+clean_modules() {
+    cd "$PROJECT"
     rm -rf dist
     rm -rf build
     rm -rf modules
     rm -rf zmk
     rm -rf zephyr
-    rm -rf .west
-    rm -rf .venv
-    docker rmi $DOCKER_IMAGE
 }
 
-docker_exec() {
-    # create image
+clean_tools() {
+    cd "$PROJECT"
+    rm -rf .venv
+    rm -rf "${ZEPHYR_SDK_VERSION}"
+    rm -rf "${ZEPHYR_SDK_INSTALL_DIR}/${ZEPHYR_SDK_VERSION}"
+    if [ ! -z "$(docker ps -q -a -f name=$CONTAINER_NAME)" ]; then
+        docker rm -f  $CONTAINER_NAME $(docker ps -q -a -f name=$CONTAINER_NAME)
+        sleep 1
+    fi
+    if [ ! -z "$(docker images -q $DOCKER_IMAGE)" ]; then
+        docker rmi $DOCKER_IMAGE
+    fi
+}
+
+clean_all() {
+    cd "$PROJECT"
+    find . -name "*~" -exec rm -f {} \;
+    find . -name ".DS_Store" -exec rm -f {} \;
+    clean_modules
+    clean_tools
+}
+
+setup_docker() {
     if [ -z "$(docker images -q $DOCKER_IMAGE)" ]; then
         docker build \
                --build-arg HOST_UID=$(id -u) \
@@ -107,8 +138,11 @@ docker_exec() {
                --build-arg WORKSPACE_DIR=$CONTAINER_WORKSPACE_DIR \
                -t my/zmk-dev-arm:stable -f $DOCKERFILE .
     fi
+}
+
+docker_exec() {
     # create container
-    if [ -z "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
+    if [ -z "$(docker ps -q -a -f name=$CONTAINER_NAME)" ]; then
         docker run -dit --init \
                -v $PROJECT:$CONTAINER_WORKSPACE_DIR \
                --name $CONTAINER_NAME \
@@ -117,13 +151,15 @@ docker_exec() {
     fi
     # exec
     docker exec $1 \
-         -w $CONTAINER_WORKSPACE_DIR \
-         $CONTAINER_NAME \
-         bash
+           -w $CONTAINER_WORKSPACE_DIR \
+           $CONTAINER_NAME \
+           bash
 }
 
 setup_macos() {
+    brew update
     brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
+    brew cleanup
 
     if [[ ! -d "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}" ]]; then
         mkdir -p "$ZEPHYR_SDK_INSTALL_DIR"
@@ -132,12 +168,14 @@ setup_macos() {
         wget -q "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/${sdk_minimal_file_name}"
         tar xvf ${sdk_minimal_file_name}
         cd zephyr-sdk-${ZEPHYR_SDK_VERSION}
-        ./setup.sh -h -c -t $TARGET_TOOLCHAIN
+        if [[ ! -d "${TARGET_TOOLCHAIN}" ]]; then
+            ./setup.sh -h -c -t $TARGET_TOOLCHAIN
+        fi
         rm ${sdk_minimal_file_name}
     fi
 }
 
-setup_build_env() {
+setup() {
     # TODO fedora on WSL
     if [ $(uname) = "Darwin" ]; then
         setup_macos
@@ -155,10 +193,14 @@ setup_build_env() {
 
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install west
-    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-base.txt
-    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-build-test.txt
-    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-run-test.txt
+    pip3 install west
+    pip3 install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-base.txt
+    pip3 install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-build-test.txt
+    pip3 install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-run-test.txt
+    pip3 cache purge
+}
+
+clangd_setting() {
 }
 
 ccls_setting() {
@@ -175,6 +217,75 @@ ccls_setting() {
 EOS
 }
 
+build() {
+    cd "$PROJECT"
+    if [ ! -d .west/ ]; then
+        west init -l config
+        west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    fi
+
+    if $UPDATE_BUILD; then
+        rm -rf build
+        if [ -d zmk ]; then
+            # revert changes
+            cd "$PROJECT/zmk"
+            git reset --hard HEAD
+            git clean -dfx
+        fi
+        cd "$PROJECT"
+        west update -n
+        cd "${PROJECT}/zmk"
+        if $APPLY_PATCHES; then
+            git apply -3 --verbose ../patches/zmk_*.patch
+        fi
+        cd "$PROJECT"
+        west zephyr-export
+    fi
+    cd "$PROJECT"
+    west build -s zmk/app -b bt60 -- -DZMK_CONFIG="${PROJECT}/config"
+    mv build/compile_commands.json .
+}
+
+build_with_docker() {
+    cd "$PROJECT"
+    if [ ! -d .west/ ]; then
+        docker_exec -i <<-EOF
+          west init -l config
+          west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+EOF
+    fi
+
+    if $UPDATE_BUILD; then
+        rm -rf build
+        if [ -d zmk ]; then
+            # revert changes
+            docker_exec -i <<-EOF
+              cd zmk
+              git reset --hard HEAD
+              git clean -dfx
+EOF
+        fi
+        docker_exec -i <<-EOF
+          west update -n
+EOF
+        if $APPLY_PATCHES; then
+            docker_exec -i <<-"EOF"
+              cd zmk
+              git apply -3 --verbose $(ls ../patches/zmk_*.patch)
+EOF
+        fi
+        docker_exec -i <<-EOF
+          west zephyr-export
+EOF
+    fi
+    docker_exec -i <<-EOF
+      west build -s zmk/app -b bt60 -- -DZMK_CONFIG=${CONTAINER_WORKSPACE_DIR}/config
+EOF
+    # TODO lang server inside docker
+    #  - lsp-tramp-connection dosen't work with macos
+    #  - ccls binary is not aveilable for linux/arm
+    rm build/compile_commands.json
+}
 
 cd "$PROJECT"
 
@@ -190,78 +301,47 @@ if (( $#help )); then
 elif (( $#clean_all )); then
     clean_all
     return
+elif (( $#clean_tools )); then
+    clean_tools
+    return
+elif (( $#clean_modules )); then
+    clean_modules
+    return
 elif (( $#docker_shell )); then
+    setup_docker
     docker_exec -it
     return
 elif (( $#setup )); then
-    setup_build_env
+    setup
     return
 fi
-
 
 # build option parameters
 # -----------------------------------
 (( $#without_update )) && UPDATE_BUILD=false
-(( $#without_patch )) && APPLY_PATCHS=false
+(( $#without_patch )) && APPLY_PATCHES=false
 
+[[ -d modules ]] || UPDATE_BUILD=true
+[[ -d zephyr ]] || UPDATE_BUILD=true
+[[ -d zmk ]] || UPDATE_BUILD=true
+[[ -d .west ]] || UPDATE_BUILD=true
 
-[ ! -d modules ] && UPDATE_BUILD=true
-[ ! -d zephyr ] && UPDATE_BUILD=true
-[ ! -d zmk ] && UPDATE_BUILD=true
-
-if [ ! -d .west/ ]; then
+# pre build setup
+# -----------------------------------
+if (( $#with_setup )); then
     if (( $#with_docker )); then
-        docker_run west init -l config
-        docker_run west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        setup_docker
     else
-        west init -l config
-        west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    fi
-    UPDATE_BUILD=true
-fi
-
-if $UPDATE_BUILD; then
-    rm -rf build
-    if [ -d zmk ]; then
-        # revert changes
-        if (( $#with_docker )); then
-            docker_exec -i <<-EOF
-            cd zmk
-            git reset --hard HEAD
-            git clean -dfx
-EOF
-        else
-            cd "$PROJECT/zmk"
-            git reset --hard HEAD
-            git clean -dfx
-        fi
-    fi
-    if (( $#with_docker )); then
-        docker_exec -i <<-"EOF"
-        west update -n
-        cd zmk
-        git apply -3 --verbose $(ls ../patches/zmk_*.patch)
-        cd ..
-        west zephyr-export
-EOF
-    else
-        cd "$PROJECT"
-        west update -n
-        cd zmk
-        git apply -3 --verbose ../patches/zmk_*.patch
-        cd "$PROJECT"
-        west zephyr-export
+        setup
     fi
 fi
 
-
+# build
+# -----------------------------------
 if (( $#with_docker )); then
-    docker_exec -i <<-EOF
-     west build -s zmk/app -b bt60 -- -DZMK_CONFIG=${CONTAINER_WORKSPACE_DIR}/config
-EOF
+    build_with_docker
 else
-    cd "$PROJECT"
-    west build -s zmk/app -b bt60 -- -DZMK_CONFIG="${PROJECT}/config"
+    build
 fi
 
 # copy & rename firmware
@@ -275,7 +355,7 @@ cd "$PROJECT"
 mkdir -p dist
 cp build/zephyr/zmk.uf2 dist/bt60_hhkb_ec11_${VERSION}.uf2
 
-# flashfirmware
+# flash firmware
 # -----------------------------------
 UF2_FLASH_VOLUME=""
 if (( $#flash )); then
