@@ -4,8 +4,10 @@ PROJECT=$(realpath $0:h)
 
 # configuration
 # -----------------------------------
-HOST_OS=macos
+HOST_OS=$(uname)
+[[ $HOST_OS = "Darwin" ]] && HOST_OS=macos
 HOST_ARCHITECTURE=$(uname -m)
+[[ $HOST_OS = "macos" ]] && [[ $HOST_ARCHITECTURE = "arm64" ]] && HOST_ARCHITECTURE=aarch64
 ZEPHYR_VERSION=3.2.0
 ZEPHYR_SDK_VERSION=0.15.2
 
@@ -174,18 +176,17 @@ setup_macos() {
     brew update
     brew install wget git cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
     brew cleanup
-
     if [[ ! -d "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}" ]]; then
         mkdir -p "$ZEPHYR_SDK_INSTALL_DIR"
         cd "$ZEPHYR_SDK_INSTALL_DIR"
         sdk_minimal_file_name="zephyr-sdk-${ZEPHYR_SDK_VERSION}_${HOST_OS}-${HOST_ARCHITECTURE}_minimal.tar.gz"
-        wget -q "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/${sdk_minimal_file_name}"
+        wget "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/${sdk_minimal_file_name}"
         tar xvf ${sdk_minimal_file_name}
-        cd zephyr-sdk-${ZEPHYR_SDK_VERSION}
-        if [[ ! -d "${TARGET_TOOLCHAIN}" ]]; then
-            ./setup.sh -h -c -t $TARGET_TOOLCHAIN
-        fi
         rm ${sdk_minimal_file_name}
+    fi
+    cd "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}"
+    if [[ ! -d "${TARGET_TOOLCHAIN}" ]]; then
+        ./setup.sh -h -c -t $TARGET_TOOLCHAIN
     fi
 }
 
