@@ -1,3 +1,4 @@
 FROM zmkfirmware/zmk-dev-arm:stable
-ARG WORK_DIR=/workdir
-RUN echo "[ -f $WORK_DIR/zepzephyr/zephyr-env.sh ] && source $WORK_DIR/zepzephyr/zephyr-env.sh" >> /root/.bashrc
+ARG WORKSPACE_DIR=/workspace
+RUN \
+  echo "[ -f $WORKSPACE_DIR/zephyr/zephyr-env.sh ] && source $WORKSPACE_DIR/zephyr/zephyr-env.sh" >> /root/.bashrc

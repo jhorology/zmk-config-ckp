@@ -5,91 +5,275 @@ cd "$PROJECT"
 
 zparseopts -D -E -F -- \
            {h,-help}=help  \
-           {c,-clean}=clean  \
-           {d,-docker}=docker  \
-           {f,-flash}=flash  \
+           -clean-all=clean_all \
+           -setup=setup \
+           {s,-docker-shell}=docker_shell \
+           {d,-with-docker}=with_docker \
            {w,-without-update}=without_update \
+           {p,-without-patch}=without_patch \
+           {f,-flash}=flash  \
     || return
-
-# help
-# -----------------------------------
-if (( $#help )); then
-    print -rC1 --      \
-          "" \
-          "Usage:" \
-          "    $0:t <-h|--help>                   help" \
-          "    $0:t <-c|--clean>                  clean build environment" \
-          "    $0:t <-d|--docker>                 enter docker container shell" \
-          "    $0:t [options...]                  build firmware" \
-          "" \
-          "options:" \
-          "    -f,--flash                       post build copy firmware to DFU drive" \
-          "    -w,--without-update              don't sync remote repository"
-    return
-fi
 
 # configuration
 # -----------------------------------
+HOST_OS=macos
+HOST_ARCHITECTURE=$(uname -m)
+ZEPHYR_VERSION=3.2.0
+ZEPHYR_SDK_VERSION=0.15.2
+
+# it is recommended to extract the Zephyr SDK bundle at one of the following default locations:
+#
+# $HOME
+# $HOME/.local
+# $HOME/.local/opt
+# $HOME/bin
+# /opt
+# /usr/local
+ZEPHYR_SDK_INSTALL_DIR=$HOME/.local
+
+# Supported Toolchains:
+#
+# aarch64-zephyr-elf
+# arc64-zephyr-elf
+# arc-zephyr-elf
+# arm-zephyr-eabi
+# mips-zephyr-elf
+# nios2-zephyr-elf
+# riscv64-zephyr-elf
+# sparc-zephyr-elf
+# x86_64-zephyr-elf
+# xtensa-espressif_esp32_zephyr-elf
+# xtensa-espressif_esp32s2_zephyr-elf
+# xtensa-intel_apl_adsp_zephyr-elf
+# xtensa-intel_bdw_adsp_zephyr-elf
+# xtensa-intel_byt_adsp_zephyr-elf
+# xtensa-intel_s1000_zephyr-elf
+# xtensa-nxp_imx_adsp_zephyr-elf
+# xtensa-nxp_imx8m_adsp_zephyr-elf
+# xtensa-sample_controller_zephyr-elf
+TARGET_TOOLCHAIN=arm-zephyr-eabi
+
+DOCKERFILE="Dockerfile.$(uname)"
 DOCKER_IMAGE=my/zmk-dev-arm:stable
-UPDATE_BUILD_ENV=true
-CONTAINER_WORK_DIR=/workdir
+CONTAINER_NAME=zmk-build
+UPDATE_BUILD=true
+APPLY_PATCHES=true
+CONTAINER_WORKSPACE_DIR=/workspace
 
-#  override configuration
-# -----------------------------------
-[ -s .config ] &&  source .config
+THIS_SCRIPT=$0
 
-#  clean
+# functions
 # -----------------------------------
-if (( $#clean )); then
+help_usage() {
+    print -rC1 --      \
+          "" \
+          "Usage:" \
+          "    $THIS_SCRIPT:t <-h|--help>              help" \
+          "    $THIS_SCRIPT:t <--clean-all>            clean build environment" \
+          "    $THIS_SCRIPT:t <--setup>                setup zephyr sdk & projtect build environment" \
+          "    $THIS_SCRIPT:t <-s|--docker-shell>      enter docker container shell" \
+          "    $THIS_SCRIPT:t [build options...]       build firmware" \
+          "" \
+          "build options:" \
+          "    -d,--with-docker                 build with docker" \
+          "    -w,--without-update              don't sync remote repository" \
+          "    -p,--without-patch               don't apply patches" \
+          "    -f,--flash                       post build copy firmware to DFU drive" \
+}
+
+error_exit() {
+    print -r "Error: $2" >&2
+    exit $1
+}
+
+
+clean_all() {
     rm -rf dist
     rm -rf build
     rm -rf modules
     rm -rf zmk
     rm -rf zephyr
     rm -rf .west
+    rm -rf .venv
     docker rmi $DOCKER_IMAGE
+}
+
+docker_exec() {
+    # create image
+    if [ -z "$(docker images -q $DOCKER_IMAGE)" ]; then
+        docker build \
+               --build-arg HOST_UID=$(id -u) \
+               --build-arg HOST_GID=$(id -g) \
+               --build-arg WORKSPACE_DIR=$CONTAINER_WORKSPACE_DIR \
+               -t my/zmk-dev-arm:stable -f $DOCKERFILE .
+    fi
+    # create container
+    if [ -z "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
+        docker run -dit --init \
+               -v $PROJECT:$CONTAINER_WORKSPACE_DIR \
+               --name $CONTAINER_NAME \
+               -w $CONTAINER_WORKSPACE_DIR \
+               $DOCKER_IMAGE
+    fi
+    # exec
+    docker exec $1 \
+         -w $CONTAINER_WORKSPACE_DIR \
+         $CONTAINER_NAME \
+         bash
+}
+
+setup_macos() {
+    brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
+
+    if [[ ! -d "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}" ]]; then
+        mkdir -p "$ZEPHYR_SDK_INSTALL_DIR"
+        cd "$ZEPHYR_SDK_INSTALL_DIR"
+        sdk_minimal_file_name="zephyr-sdk-${ZEPHYR_SDK_VERSION}_${HOST_OS}-${HOST_ARCHITECTURE}_minimal.tar.gz"
+        wget -q "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/${sdk_minimal_file_name}"
+        tar xvf ${sdk_minimal_file_name}
+        cd zephyr-sdk-${ZEPHYR_SDK_VERSION}
+        ./setup.sh -h -c -t $TARGET_TOOLCHAIN
+        rm ${sdk_minimal_file_name}
+    fi
+}
+
+setup_build_env() {
+    # TODO fedora on WSL
+    if [ $(uname) = "Darwin" ]; then
+        setup_macos
+    else
+        error_exit 1 "Unsupported host OS."
+    fi
+
+    cd "$PROJECT"
+
+    # zinit setting
+    #
+    # https://github.com/MichaelAquilina/zsh-autoswitch-virtualenv
+    # export AUTOSWITCH_DEFAULT_PYTHON=python3
+    # zinit load MichaelAquilina/zsh-autoswitch-virtualenv
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install west
+    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-base.txt
+    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-build-test.txt
+    pip install -r https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/v${ZEPHYR_VERSION}/scripts/requirements-run-test.txt
+}
+
+ccls_setting() {
+    cat <<EOS > "${PROJECT}/.ccls"
+{
+  "clang": {
+     "resourceDir": "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}/${TARGET_TOOLCHAIN}/${TARGET_TOOLCHAIN}",
+     "clang.extraArgs": [
+       "-gcc-toolchain=${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}/${TARGET_TOOLCHAIN}"
+     ]
+  },
+  "compilationDatabaseDirectory": "${PROJECT}/build/"
+}
+EOS
+}
+
+
+cd "$PROJECT"
+
+#  override configuration
+# -----------------------------------
+[ -s .config ] &&  source .config
+
+#  sub commands
+# -----------------------------------
+if (( $#help )); then
+    help_usage
+    return
+elif (( $#clean_all )); then
+    clean_all
+    return
+elif (( $#docker_shell )); then
+    docker_exec -it
+    return
+elif (( $#setup )); then
+    setup_build_env
     return
 fi
 
-# option parameters
-# -----------------------------------
-(( $#without_update )) && UPDATE_BUILD_ENV=false
 
-# pull docker  image
+# build option parameters
 # -----------------------------------
-# prevent creating files as root under WSL
-DOCKERFILE="Dockerfile.$(uname)"
-if [ -z "$( docker images -q $DOCKER_IMAGE)" ]; then
-    docker build \
-           --build-arg HOST_UID=$(id -u) \
-           --build-arg HOST_GID=$(id -g) \
-           --build-arg WORK_DIR=$CONTAINER_WORK_DIR \
-           -t my/zmk-dev-arm:stable -f $DOCKERFILE .
+(( $#without_update )) && UPDATE_BUILD=false
+(( $#without_patch )) && APPLY_PATCHS=false
+
+
+[ ! -d modules ] && UPDATE_BUILD=true
+[ ! -d zephyr ] && UPDATE_BUILD=true
+[ ! -d zmk ] && UPDATE_BUILD=true
+
+if [ ! -d .west/ ]; then
+    if (( $#with_docker )); then
+        docker_run west init -l config
+        docker_run west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    else
+        west init -l config
+        west config build.cmake-args -- -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    fi
+    UPDATE_BUILD=true
 fi
 
-# enter docker container shell
-# -----------------------------------
-if (( $#docker )); then
-    docker run -it --rm -v $PROJECT:$CONTAINER_WORK_DIR \
-           --name zmk-build $DOCKER_IMAGE \
-           bash
-    return
+if $UPDATE_BUILD; then
+    rm -rf build
+    if [ -d zmk ]; then
+        # revert changes
+        if (( $#with_docker )); then
+            docker_exec -i <<-EOF
+            cd zmk
+            git reset --hard HEAD
+            git clean -dfx
+EOF
+        else
+            cd "$PROJECT/zmk"
+            git reset --hard HEAD
+            git clean -dfx
+        fi
+    fi
+    if (( $#with_docker )); then
+        docker_exec -i <<-"EOF"
+        west update -n
+        cd zmk
+        git apply -3 --verbose $(ls ../patches/zmk_*.patch)
+        cd ..
+        west zephyr-export
+EOF
+    else
+        cd "$PROJECT"
+        west update -n
+        cd zmk
+        git apply -3 --verbose ../patches/zmk_*.patch
+        cd "$PROJECT"
+        west zephyr-export
+    fi
 fi
 
-# docker build task
-# -----------------------------------
-docker run -it --rm -v $PROJECT:$CONTAINER_WORK_DIR \
-       --env UPDATE_BUILD_ENV=$UPDATE_BUILD_ENV \
-       --name zmk-build $DOCKER_IMAGE \
-       $CONTAINER_WORK_DIR/container_build_task.sh
+
+if (( $#with_docker )); then
+    docker_exec -i <<-EOF
+     west build -s zmk/app -b bt60 -- -DZMK_CONFIG=${CONTAINER_WORKSPACE_DIR}/config
+EOF
+else
+    cd "$PROJECT"
+    west build -s zmk/app -b bt60 -- -DZMK_CONFIG="${PROJECT}/config"
+fi
 
 # copy & rename firmware
 # -----------------------------------
-pushd zmk
+cd "$PROJECT/zmk"
+
 VERSION="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
-popd
+
+cd "$PROJECT"
+
 mkdir -p dist
-cp build/bt60/zephyr/zmk.uf2 dist/bt60_hhkb_ec11_${VERSION}.uf2
+cp build/zephyr/zmk.uf2 dist/bt60_hhkb_ec11_${VERSION}.uf2
 
 # flashfirmware
 # -----------------------------------
@@ -117,7 +301,3 @@ if (( $#flash )); then
         done
     fi
 fi
-
-
-# BT65 is finally broken.
-# cp build/bt65/zephyr/zmk.uf2 dist/bt65_tsangan_ec11x3_${VERSION}.uf2

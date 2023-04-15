@@ -7,11 +7,15 @@
 
 .vscode
 .dir-locals.el
-
+.ccls
+.clangd
 *.uf2
 
 .config
 .west/
+.venv/
+.cache/
+.ccls-cache/
 zephyr/
 zmk/
 modules/
