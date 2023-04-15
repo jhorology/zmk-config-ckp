@@ -6,6 +6,7 @@ PROJECT=$(realpath $0:h)
 # -----------------------------------
 HOST_OS=$(uname)
 [[ $HOST_OS = "Darwin" ]] && HOST_OS=macos
+[[ $HOST_OS = "Linux" ]] && HOST_OS=linux
 HOST_ARCHITECTURE=$(uname -m)
 [[ $HOST_OS = "macos" ]] && [[ $HOST_ARCHITECTURE = "arm64" ]] && HOST_ARCHITECTURE=aarch64
 ZEPHYR_VERSION=3.2.0
@@ -117,7 +118,7 @@ clean_tools() {
     rm -rf "${ZEPHYR_SDK_INSTALL_DIR}/${ZEPHYR_SDK_VERSION}"
     if [ ! -z "$(docker ps -q -a -f name=$CONTAINER_NAME)" ]; then
         docker rm -f  $CONTAINER_NAME $(docker ps -q -a -f name=$CONTAINER_NAME)
-        sleep 1
+        sleep 5
     fi
     if [ ! -z "$(docker images -q $DOCKER_IMAGE)" ]; then
         docker rmi $DOCKER_IMAGE
@@ -126,10 +127,16 @@ clean_tools() {
 
 clean_all() {
     cd "$PROJECT"
-    find . -name "*~" -exec rm -f {} \;
-    find . -name ".DS_Store" -exec rm -f {} \;
     clean_modules
     clean_tools
+    find . -name "*~" -exec rm -f {} \;
+    find . -name ".DS_Store" -exec rm -f {} \;
+}
+
+setup_docker_linux() {
+    # TODO
+    which docker &> /dev/null || \
+        echo "see https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers"
 }
 
 setup_docker_macos() {
@@ -139,14 +146,16 @@ setup_docker_macos() {
 }
 
 setup_docker() {
-    # TODO fedora on WSL
     if [ $HOST_OS = "macos" ]; then
         setup_docker_macos
+    elif [ $HOST_OS = "linux" ]; then
+        setup_docker_linux
     else
         error_exit 1 "Unsupported host OS."
     fi
     which docker &> /dev/null || \
         error_exit 1 "'docker' command not found. Check Docker.app cli setting."
+
     if [ -z "$(docker images -q $DOCKER_IMAGE)" ]; then
         docker build \
                --build-arg HOST_UID=$(id -u) \
@@ -172,10 +181,38 @@ docker_exec() {
            bash
 }
 
+setup_fedora() {
+    # https://docs.zephyrproject.org/3.2.0/develop/getting_started/index.html#select-and-update-os
+    sudo dnf update
+    sudo dnf install wget git cmake ninja-build gperf python3 ccache dtc wget xz file \
+         make gcc SDL2-devel file-libs
+    # gcc-multilib g++-multilib
+    sudo dnf autoremove
+    sudo dnf clean all
+}
+
 setup_macos() {
+    # https://docs.zephyrproject.org/3.2.0/develop/getting_started/index.html#select-and-update-os
     brew update
-    brew install wget git cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
+    brew install wget git cmake ninja gperf python3 ccache qemu dtc libmagic ccls
     brew cleanup
+}
+
+setup() {
+    cd "$PROJECT"
+    # TODO fedora on WSL
+    if [ $HOST_OS = "macos" ]; then
+        setup_macos
+    elif [ $HOST_OS = "linux" ]; then
+        if [ -f /etc/fedora-release ]; then
+            setup_fedora
+        else
+          error_exit 1 "Unsupported host OS."
+        fi
+    else
+        error_exit 1 "Unsupported host OS."
+    fi
+
     if [[ ! -d "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}" ]]; then
         mkdir -p "$ZEPHYR_SDK_INSTALL_DIR"
         cd "$ZEPHYR_SDK_INSTALL_DIR"
@@ -188,16 +225,6 @@ setup_macos() {
     if [[ ! -d "${TARGET_TOOLCHAIN}" ]]; then
         ./setup.sh -h -c -t $TARGET_TOOLCHAIN
     fi
-}
-
-setup() {
-    # TODO fedora on WSL
-    if [ $HOST_OS = "macos" ]; then
-        setup_macos
-    else
-        error_exit 1 "Unsupported host OS."
-    fi
-
     cd "$PROJECT"
 
     # zinit setting
@@ -328,6 +355,9 @@ elif (( $#docker_shell )); then
     return
 elif (( $#setup )); then
     setup
+    return
+elif (( $#setup_docker )); then
+    setup_docker
     return
 fi
 
