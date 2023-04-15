@@ -130,7 +130,21 @@ clean_all() {
     clean_tools
 }
 
+setup_docker_macos() {
+    brew update
+    brew install --cask docker
+    brew cleanup
+}
+
 setup_docker() {
+    # TODO fedora on WSL
+    if [ $HOST_OS = "macos" ]; then
+        setup_docker_macos
+    else
+        error_exit 1 "Unsupported host OS."
+    fi
+    which docker &> /dev/null || \
+        error_exit 1 "'docker' command not found. Check Docker.app cli setting."
     if [ -z "$(docker images -q $DOCKER_IMAGE)" ]; then
         docker build \
                --build-arg HOST_UID=$(id -u) \
@@ -158,7 +172,7 @@ docker_exec() {
 
 setup_macos() {
     brew update
-    brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
+    brew install wget git cmake ninja gperf python3 ccache qemu dtc wget libmagic ccls
     brew cleanup
 
     if [[ ! -d "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}" ]]; then
@@ -177,7 +191,7 @@ setup_macos() {
 
 setup() {
     # TODO fedora on WSL
-    if [ $(uname) = "Darwin" ]; then
+    if [ $HOST_OS = "macos" ]; then
         setup_macos
     else
         error_exit 1 "Unsupported host OS."
