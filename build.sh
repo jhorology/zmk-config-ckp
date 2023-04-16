@@ -346,13 +346,15 @@ EOF
 
 # $1 board
 build() {
-    west build -s zmk/app -b "$1" --build-dir "build/$1" -- -DZMK_CONFIG="${PROJECT}/config"
+    board=$1
+    west build -s zmk/app -b $board --build-dir build/$board -- -DZMK_CONFIG="${PROJECT}/config"
 }
 
 # $1 board
 build_with_docker() {
+    board=$1
     docker_exec -i <<-EOF
-    west build -s zmk/app -b $1  -d build/$1 -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
+    west build -s zmk/app -b $1 --build-dir build/$board -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
 EOF
 }
 
