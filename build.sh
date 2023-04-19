@@ -82,7 +82,7 @@ zparseopts -D -E -F -- \
            {c,-with-clean}=with_clean \
            {w,-without-update}=without_update \
            {p,-without-patch}=without_patch \
-           {f,-flash}=flash  \
+           {f,-with-flash}=with_flash \
     || return
 
 
@@ -96,7 +96,7 @@ help_usage() {
           "    $THIS_SCRIPT:t --clean                         clean build folder" \
           "    $THIS_SCRIPT:t --clean-modules                 clean source moudules & build files" \
           "    $THIS_SCRIPT:t --clean-tools                   clean zephyr sdk & project build tools" \
-          "    $THIS_SCRIPT:t --clean-all>                    clean build environment" \
+          "    $THIS_SCRIPT:t --clean-all                     clean build environment" \
           "    $THIS_SCRIPT:t --setup                         setup zephyr sdk & projtect build tools" \
           "    $THIS_SCRIPT:t --setup-docker                  create docker image" \
           "    $THIS_SCRIPT:t <-s|--docker-shell>             enter docker container shell" \
@@ -108,7 +108,7 @@ help_usage() {
           "    --with-setup                     pre build automatic setup" \
           "    -w,--without-update              don't sync remote repository" \
           "    -p,--without-patch               don't apply patches" \
-          "    -f,--flash                       post build copy firmware to DFU drive" \
+          "    -f,--with-flash                  post build copy firmware to DFU drive" \
           "" \
           "available targets:"
     for target in ${(k)KEYBOARDS}; do
@@ -208,13 +208,22 @@ setup_docker() {
 }
 
 docker_exec() {
+
+    container_id_state=$(docker ps -q -a -f name=$CONTAINER_NAME --format "{{.ID}}:{{.State}}")
     # create container
-    if [ -z "$(docker ps -q -a -f name=$CONTAINER_NAME)" ]; then
+    if [[ -z $container_id_state ]]; then
         docker run -dit --init \
                -v $PROJECT:$CONTAINER_WORKSPACE_DIR \
                --name $CONTAINER_NAME \
                -w $CONTAINER_WORKSPACE_DIR \
                $DOCKER_IMAGE
+    else
+        array_id_state=(${(@s/:/)container_id_state})
+        container_id=$array_id_state[1]
+        container_state=$array_id_state[2]
+        if [[ $container_state != "running" ]]; then
+            docker start $container_id
+        fi
     fi
     # exec
     docker exec $1 \
@@ -347,14 +356,16 @@ EOF
 # $1 board
 build() {
     board=$1
+
     west build -s zmk/app -b $board --build-dir build/$board -- -DZMK_CONFIG="${PROJECT}/config"
 }
 
 # $1 board
 build_with_docker() {
     board=$1
+
     docker_exec -i <<-EOF
-    west build -s zmk/app -b $1 --build-dir build/$board -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
+    west build -s zmk/app -b $board --build-dir build/$board -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
 EOF
 }
 
@@ -362,15 +373,19 @@ EOF
 # copy & rename firmware
 # $1 board
 # $2 firmware name
+# return echo path or firmware
 # -----------------------------------
 dist_firmware() {
+    board=$1
+    firmware_name=$2
+
     cd "$PROJECT"
     cd zmk
     version="$(date +"%Y%m%d")_zmk_$(git rev-parse --short HEAD)"
     cd ..
     mkdir -p dist
-    src=build/${1}/zephyr/zmk.uf2
-    dst=dist/bt60_hhkb_ec11_${version}.uf2
+    src=build/${board}/zephyr/zmk.uf2
+    dst=dist/${firmware_name}_${version}.uf2
     cp $src $dst
     echo $dst
 }
@@ -378,7 +393,9 @@ dist_firmware() {
 
 # $1 volume name
 macos_dfu_volume() {
-    echo /Volumes/$1
+    volume_name=$1
+
+    echo /Volumes/${volume_name}
 }
 
 fedora_dfu_volume() {
@@ -390,7 +407,9 @@ fedora_dfu_volume() {
 # $2 volume name
 flash_firmware() {
     src=$1
-    dst_dir=$(${os}_dfu_volume $2)
+    volume_name=$1
+
+    dst_dir=$(${os}_dfu_volume "$volume_name")
     echo -n "Waiting for DFU volume:[$dst_dir] to be mounted"
     for ((i=0; i < 20; i+=1)); do
         echo -n "."
@@ -483,7 +502,7 @@ for target in $TARGETS; do
         build $board
     fi
     firmware_file=$(dist_firmware $board $firmware_name)
-    if (( $#flash )); then
+    if (( $#with_flash )); then
         flash_firmware $firmware_file $dfu_volume_name
     fi
 done
