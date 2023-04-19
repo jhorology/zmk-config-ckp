@@ -76,6 +76,7 @@ zparseopts -D -E -F -- \
            -clean-all=clean_all \
            -setup=setup \
            -setup-docker=setup_docker \
+           -pip-upgrade=pip_upgrade \
            {s,-docker-shell}=docker_shell \
            {d,-with-docker}=with_docker \
            -with-setup=with_setup \
@@ -99,6 +100,7 @@ help_usage() {
           "    $THIS_SCRIPT:t --clean-all                     clean build environment" \
           "    $THIS_SCRIPT:t --setup                         setup zephyr sdk & projtect build tools" \
           "    $THIS_SCRIPT:t --setup-docker                  create docker image" \
+          "    $THIS_SCRIPT:t --pip-upgrade                   upgrade python packages" \
           "    $THIS_SCRIPT:t <-s|--docker-shell>             enter docker container shell" \
           "    $THIS_SCRIPT:t [build options...] [TARGETS..]  build firmwares" \
           "" \
@@ -283,6 +285,14 @@ setup() {
     pip3 cache purge
 }
 
+pip_upgrade() {
+    cd "$PROJECT"
+    source .venv/bin/activate
+    pip3 --disable-pip-version-check list --outdated --format=json | \
+        python -c "import json, sys; print('\n'.join([x['name'] for x in json.load(sys.stdin)]))" | \
+        xargs -n1 pip install -U
+}
+
 clangd_setting() {
 }
 
@@ -455,6 +465,9 @@ elif (( $#setup )); then
 elif (( $#setup_docker )); then
     setup_docker
     return
+elif (( $#pip_upgrade )); then
+    pip_upgrade
+    return
 fi
 
 # build option parameters
@@ -484,11 +497,15 @@ if (( $#with_setup )); then
     fi
 fi
 
+
 # build
 # -----------------------------------
 if (( $#with_docker )); then
     update_with_docker
 else
+    if [[ $(which python3) != "${PROJECT}/.venv/bin/python3" ]]; then
+        source .venv/bin/activate
+    fi
     update
 fi
 for target in $TARGETS; do
