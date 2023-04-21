@@ -1,0 +1,2 @@
+CompileFlags:
+  Remove: [-mfp16-format*, -fno-reorder-functions]

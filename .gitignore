@@ -8,7 +8,6 @@
 .vscode
 .dir-locals.el
 .ccls
-.clangd
 *.uf2
 
 compile_commands.json
