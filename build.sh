@@ -263,11 +263,11 @@ setup() {
         rm ${sdk_minimal_file_name}
     fi
     cd "${ZEPHYR_SDK_INSTALL_DIR}/zephyr-sdk-${ZEPHYR_SDK_VERSION}"
-    if [[ ! -d "${TARGET_TOOLCHAIN}" ]]; then
-        for toolchain in $TARGET_TOOLCHAINS; do
-         ./setup.sh -h -c -t $toolchain
-        done
-    fi
+    for toolchain in $TARGET_TOOLCHAINS; do
+        if [[ ! -d $toolchain ]]; then
+            ./setup.sh -h -c -t $toolchain
+        fi
+    done
     cd "$PROJECT"
 
     # zinit setting
