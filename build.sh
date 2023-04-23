@@ -367,7 +367,7 @@ EOF
 build() {
     board=$1
 
-    west build -s zmk/app -b $board --build-dir build/$board -- -DZMK_CONFIG="${PROJECT}/config"
+    west build --pristine --board $board --build-dir build/$board zmk/app -- -DZMK_CONFIG="${PROJECT}/config"
 }
 
 # $1 board
@@ -375,7 +375,7 @@ build_with_docker() {
     board=$1
 
     docker_exec -i <<-EOF
-    west build -s zmk/app -b $board --build-dir build/$board -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
+    west build --pristine --board $board --build-dir build/$board zmk/app -- -DZMK_CONFIG="${CONTAINER_WORKSPACE_DIR}/config"
 EOF
 }
 
@@ -417,7 +417,7 @@ fedora_dfu_volume() {
 # $2 volume name
 flash_firmware() {
     src=$1
-    volume_name=$1
+    volume_name=$2
 
     dst_dir=$(${os}_dfu_volume "$volume_name")
     echo -n "Waiting for DFU volume:[$dst_dir] to be mounted"
